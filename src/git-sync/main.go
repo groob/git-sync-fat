@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// git-sync is a command that pull a git repository to a local directory.
+// git-sync is a command that pulls a git repository to a local directory.
 
-package main // import "k8s.io/contrib/git-sync"
+package main
 
 import (
 	"flag"
@@ -35,10 +35,23 @@ var flBranch = flag.String("branch", envString("GIT_SYNC_BRANCH", "master"), "gi
 var flRev = flag.String("rev", envString("GIT_SYNC_REV", "HEAD"), "git rev")
 var flDest = flag.String("dest", envString("GIT_SYNC_DEST", ""), "destination path")
 var flWait = flag.Int("wait", envInt("GIT_SYNC_WAIT", 0), "number of seconds to wait before exit")
+var flFat = flag.Bool("fat", envBool("GIT_SYNC_FAT", false), "also run git-fat init and git-fat pull commands")
 
 func envString(key, def string) string {
 	if env := os.Getenv(key); env != "" {
 		return env
+	}
+	return def
+}
+
+func envBool(key string, def bool) bool {
+	if env := os.Getenv(key); env != "" {
+		val, err := strconv.ParseBool(env)
+		if err != nil {
+			log.Printf("invalid value for %q: using default: %q", key, def)
+			return def
+		}
+		return val
 	}
 	return def
 }
@@ -89,6 +102,14 @@ func syncRepo(repo, dest, branch, rev string) error {
 			return fmt.Errorf("error cloning repo %q: %v: %s", strings.Join(cmd.Args, " "), err, string(output))
 		}
 		log.Printf("clone %q: %s", repo, string(output))
+		if *flFat {
+			cmd = exec.Command("git-fat", "init")
+			cmd.Dir = dest
+			if err != nil {
+				return fmt.Errorf("error running command %q : %v: %s", strings.Join(cmd.Args, " "), err, string(output))
+			}
+			log.Printf("git-fat init %q: %s", repo, string(output))
+		}
 	case err != nil:
 		return fmt.Errorf("error checking if repo exist %q: %v", gitRepoPath, err)
 	}
@@ -110,5 +131,15 @@ func syncRepo(repo, dest, branch, rev string) error {
 		return fmt.Errorf("error running command %q : %v: %s", strings.Join(cmd.Args, " "), err, string(output))
 	}
 	log.Printf("reset %q: %v", rev, string(output))
+	// git-fat pull
+	if *flFat {
+		cmd = exec.Command("git-fat", "pull")
+		cmd.Dir = dest
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error running command %q : %v: %s", strings.Join(cmd.Args, " "), err, string(output))
+		}
+		log.Printf("git-fat pull %q: %v", rev, string(output))
+	}
 	return nil
 }
