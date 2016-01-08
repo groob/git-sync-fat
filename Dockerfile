@@ -4,7 +4,7 @@ ENV FAT_VERSION 0.5.0
 ENV GIT_SYNC_BRANCH master
 
 COPY bin/git-sync-linux-amd64 /git-sync
-RUN apk add --update git python
+RUN apk add --update git python openssh
 RUN apk add --update --virtual build-dependencies curl && \
     curl -sLO https://github.com/cyaninc/git-fat/archive/${FAT_VERSION}.tar.gz && \
     tar xzf /${FAT_VERSION}.tar.gz -C / && \
@@ -14,12 +14,5 @@ RUN apk add --update --virtual build-dependencies curl && \
     rm -rf /git-fat-${FAT_VERSION} && \
     rm -rf /${FAT_VERSION}.tar.gz && \
     rm -rf /var/cache/apk/*
-
-# COPY repo-key /
-#
-# RUN \
-#   chmod 600 /repo-key && \
-#   echo "IdentityFile /repo-key" >> /etc/ssh/ssh_config && \
-#   echo -e "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
 CMD ["/git-sync"]
